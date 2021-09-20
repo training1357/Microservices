@@ -1,0 +1,95 @@
+01. Install VMWare Workstation Player
+02. Extract image ubuntu linux
+03. Buka image tsb dg VMWare Workstation Player
+
+04. Login ke VM
+	- user 		: docker1
+	- password 	: password1
+	
+05. Extract MobaXterm
+
+06. Cari IP VM
+	$ ifconfig
+	$ sudo apt install net-tools
+	$ sudo apt-get install openssh-server	
+	
+	192.168.182.135
+
+07. Login ke VM menggunakan MobaXterm
+
+
+==== Install Docker for Ubuntu
+
+01. Install Docker for Ubuntu, menggunakan dokumen "Instll Docker on Ubuntu.txt"
+
+02. Verify docker installed correctly
+
+	$ sudo docker version
+	$ sudo docker info
+	
+		WARNING: No swap limit support
+	
+03. Menghilangkan warning "No swap limit support"	
+
+	$ sudo nano /etc/default/grub
+
+		GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+
+	$ more /etc/default/grub
+	$ sudo update-grub
+	$ sudo reboot
+	$ sudo docker info
+
+04. List docker command
+
+	$ sudo docker
+
+05. Test Docker
+
+	$ sudo docker run hello-world
+
+06. Run docker without sudo
+
+	$ sudo gpasswd -a $USER docker
+	
+	Logout -> Login
+	
+	$ docker version
+	$ docker info
+
+==== Memanage Container ====
+
+01. Test Docker 
+
+	$ docker run hello-world
+	$ docker container ls -a
+	$ docker image ls
+	
+02. Starting NGINX Web Server
+
+	$ docker container run --publish 80:80 nginx
+
+
+	Test => Buka terminal kedua
+	
+	$ curl localhost
+	
+	VM: Buka Web Browser : http://localhost
+    Host Machine : Buka Web Browser : http://192.168.182.135
+
+03. Stop NGINX Web Server
+
+	$ docker container ls 
+	$ docker container stop d74d5f3e6196
+	$ docker container ls 
+	$ docker image ls
+
+
+
+
+
+
+
+
+
+
