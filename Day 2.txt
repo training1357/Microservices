@@ -1,0 +1,445 @@
+01. Melihat container yg lagi running
+
+	$ docker container ls       ==> Menampilkan container running
+	$ docker container ls -a    ==> Menampilkan semua container
+	
+	~$ curl localhost
+		curl: (7) Failed to connect to localhost port 80: Connection refused
+
+02. Menghidupkan & Mematikan container
+
+	$ docker container run --publish 80:80 --detach nginx
+	$ docker container ls
+	$ docker container stop pedantic_jemison
+	$ docker container ls
+	$ curl localhost   ==> FAILED
+	
+	$ docker container ls -a
+	$ docker container start pedantic_jemison
+	$ curl localhost   ==> SUCCESS
+	
+	$ docker container start stupefied_sinoussi
+		failed: port is already allocated
+		
+03. Melihat logs dan process sebuah container
+
+	$ docker container logs pedantic_jemison
+	$ docker container top pedantic_jemison
+	
+04. Membuat container dg nama sendiri
+
+	$ docker container stop pedantic_jemison
+	$ docker container run --publish 80:80 --detach --name webhost nginx
+	$ docker container ls -a
+	
+05. Melihat daftar command yg bisa kita explore
+
+	$ docker container --help
+	
+06. Menghapus container
+
+	$ docker container ls -a
+	$ docker container rm <container_id>
+	$ docker container rm <container_name>
+	
+	Menghapus container yg lagi running
+	
+	$ docker container rm <container_name>
+		Error response from daemon: You cannot remove a running container 
+	
+	Force Remove 
+	
+	$ docker container rm -f <container_name>
+	$ docker container ls -a
+		CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+	Menghapus container tidak menghapus imagenya
+	$ docker image ls
+	
+07. Melihat & Change Port	
+ 
+	$ docker container run --publish 80:80 --detach --name webhost nginx
+	$ docker container ls
+	$ docker container inspect webhost
+
+		 "ExposedPorts": {
+						"80/tcp": {}
+					},
+
+            "Ports": {
+                "80/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "80"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "80"
+                    }
+                ]
+            },
+
+	$ docker container port webhost
+
+		80/tcp -> 0.0.0.0:80
+		80/tcp -> :::80
+
+	## Membuat container port default 80 ==> 8080
+	
+	$ docker container run --publish 8080:80 --detach --name webhost2 nginx
+	$ docker container ls
+
+		CONTAINER ID   IMAGE     COMMAND                  CREATED          STATUS          PORTS                                   NAMES
+		ec5ce0d24c6f   nginx     "/docker-entrypoint.…"   20 seconds ago   Up 18 seconds   0.0.0.0:8080->80/tcp, :::8080->80/tcp   webhost2
+		1cd885b2000a   nginx     "/docker-entrypoint.…"   5 minutes ago    Up 5 minutes    0.0.0.0:80->80/tcp, :::80->80/tcp       webhost
+
+	$ curl localhost		==> mengakses webhost
+	$ curl localhost:8080	==> mengakses webhost2
+
+08. Create container Mongodb
+	- Check di hub.docker.com
+	
+	$ docker container run --name mongodb -d mongo
+	$ docker container ls
+
+==== Copy a Docker Image ====
+
+01. Di Source Server: Membuat container dari Apache Web Server + MySQL DB
+
+	$ docker container run -d -p 3306:3306 --name mysqdb -e MYSQL_RANDOM_ROOT_PASSWORD=yes mysql
+	$ docker container logs mysqdb
+
+		GENERATED ROOT PASSWORD: iezieQuaTeeghe3zeeXe4eino5voshah
+
+	$ docker container run -d -p 8888:80 --name webserver httpd
+	$ docker container ls
+	$ curl localhost:8888
+
+02. Di Source Server: Copy a docker image
+
+	$ docker image list
+	
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   5 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		mysql         latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd         latest    f34528d8e714   2 weeks ago    138MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+
+	$ docker save -o /home/docker1/image-mysql.tar mysql
+	$ docker save -o /home/docker1/image-httpd.tar httpd
+	$ ll -h /home/docker1/*.tar
+		-rw------- 1 docker1 docker1 136M Sep 21 10:40 /home/docker1/image-httpd.tar
+		-rw------- 1 docker1 docker1 496M Sep 21 10:40 /home/docker1/image-mysql.tar
+
+03. Di Target Server: stop & hapus container mysql + apache webserver
+
+	## Stop container
+	$ docker container ls
+	$ docker container stop mysqdb
+	$ docker container stop webserver
+	$ docker container ls
+	
+	## Hapus container
+	$ docker container ls -a
+	$ docker container rm mysqdb
+	$ docker container rm webserver
+	$ docker container ls -a
+
+04. Di Target Server: hapus image mysql + apache webserver
+
+	$ docker image ls 
+	
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   6 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		mysql         latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd         latest    f34528d8e714   2 weeks ago    138MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+	
+	$ docker rmi mysql
+	$ docker rmi httpd
+	
+	$ docker image ls 
+
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   6 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+
+05. - Next copy your image to target server
+	- Load your image to docker
+	
+	$ docker image ls 
+	
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   6 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+	
+	$ docker load -i /home/docker1/image-httpd.tar
+	$ docker load -i /home/docker1/image-mysql.tar
+	
+	$ docker image ls 
+
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   6 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		mysql         latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd         latest    f34528d8e714   2 weeks ago    138MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+
+==== Docker pull & push ====
+
+pull : image dari hub.docker.com  ==> ke komputer kita
+push : image dari komputer kita   ==> hub.docker.com
+
+01. Pull
+
+	$ docker image ls
+
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   6 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		mysql         latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd         latest    f34528d8e714   2 weeks ago    138MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+	
+	## default latest
+	$ docker pull alpine
+	
+	## versi tertentu
+	$ docker pull ubuntu:14.04
+
+	$ docker image ls
+
+		REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+		mongo         latest    ccf4b4ee3bee   6 hours ago    685MB
+		nginx         latest    ad4c705f24d3   11 days ago    133MB
+		mysql         latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd         latest    f34528d8e714   2 weeks ago    138MB
+		alpine        latest    14119a10abf4   3 weeks ago    5.6MB
+		ubuntu        14.04     13b66b487594   5 months ago   197MB
+		hello-world   latest    d1165f221234   6 months ago   13.3kB
+
+02. Menjalankan ubuntu
+
+	$ docker run -it --name my_ubuntu ubuntu:14.04 /bin/bash
+
+		root@ce5c2f610ea5:/# ping google.com
+		root@ce5c2f610ea5:/# vi /etc/hosts
+		root@ce5c2f610ea5:/# exit
+		docker1@vm1:~$
+
+03. Create Docker Account
+	- Go to https://hub.docker.com
+	- Create Account
+
+	docker id : dockermaestro9
+
+04. Image Tagging
+
+	$ docker image tag --help
+	$ docker image ls
+	
+	Download image yg tidak official
+
+	$ docker pull mysql/mysql-server
+	$ docker image ls
+
+		REPOSITORY           TAG       IMAGE ID       CREATED        SIZE
+		mongo                latest    ccf4b4ee3bee   7 hours ago    685MB
+		nginx                latest    ad4c705f24d3   11 days ago    133MB
+		mysql                latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd                latest    f34528d8e714   2 weeks ago    138MB
+		alpine               latest    14119a10abf4   3 weeks ago    5.6MB
+		mysql/mysql-server   latest    b24aaf2abddc   2 months ago   456MB
+		ubuntu               14.04     13b66b487594   5 months ago   197MB
+		hello-world          latest    d1165f221234   6 months ago   13.3kB
+
+	$ docker image tag nginx dockermaestro9/nginx
+	$ docker image ls
+	
+		REPOSITORY             TAG       IMAGE ID       CREATED        SIZE
+		mongo                  latest    ccf4b4ee3bee   7 hours ago    685MB
+		dockermaestro9/nginx   latest    ad4c705f24d3   11 days ago    133MB
+		nginx                  latest    ad4c705f24d3   11 days ago    133MB
+		mysql                  latest    0716d6ebcc1a   2 weeks ago    514MB
+		httpd                  latest    f34528d8e714   2 weeks ago    138MB
+		alpine                 latest    14119a10abf4   3 weeks ago    5.6MB
+		mysql/mysql-server     latest    b24aaf2abddc   2 months ago   456MB
+		ubuntu                 14.04     13b66b487594   5 months ago   197MB
+		hello-world            latest    d1165f221234   6 months ago   13.3kB
+
+05. Docker Push
+
+	$ docker push dockermaestro9/nginx
+
+		denied: requested access to the resource is denied
+		
+	$ docker login
+		username:
+		password:
+		
+		Login Succeeded
+		
+	$ docker push dockermaestro9/nginx
+	
+	## check hasilnya : https://hub.docker.com
+	
+06. Ubah repository dari public => private
+07. Ubah repository dari private => public
+	
+08. Menggunakan dockermaestro9/nginx
+
+	$ docker image ls
+	$ docker rmi dockermaestro9/nginx
+	$ docker image ls
+	
+	$ docker pull dockermaestro9/nginx
+	$ docker image ls
+	
+=== Melihat Dockerfile ===
+
+01. pergi https://hub.docker.com
+02. cari : mysql
+03. di bagian description, klik tag latest
+04. akan diarahkan ke Dockerfile yg ada di github
+05. Coba cari : nginx, openjdk
+
+=== Building Image: Menggunakan Docker file yg sudah ada ===
+
+01. Copy Dockerfile ke /home/docker1/
+02. Build Dockerfile
+
+	$ cd /home/docker1/
+	$ docker image build -t customnginx .
+	
+		Successfully built bd27bd4942c3
+		Successfully tagged customnginx:latest
+
+	$ docker image ls
+
+		REPOSITORY           TAG            IMAGE ID       CREATED              SIZE
+		customnginx          latest         bd27bd4942c3   About a minute ago   108MB
+		mongo                latest         ccf4b4ee3bee   9 hours ago          685MB
+		nginx                latest         ad4c705f24d3   11 days ago          133MB
+		mysql                latest         0716d6ebcc1a   2 weeks ago          514MB
+		httpd                latest         f34528d8e714   2 weeks ago          138MB
+		debian               stretch-slim   27a36d9cbe0f   2 weeks ago          55.3MB
+		alpine               latest         14119a10abf4   3 weeks ago          5.6MB
+		mysql/mysql-server   latest         b24aaf2abddc   2 months ago         456MB
+		ubuntu               14.04          13b66b487594   5 months ago         197MB
+		hello-world          latest         d1165f221234   6 months ago         13.3kB
+
+04. Ubah tag imagenya
+
+	$ docker image tag customnginx dockermaestro9/customnginx
+	$ docker image ls
+	$ docker push dockermaestro9/customnginx
+
+=== Extending Official Images ===
+
+01. Stop semua container yg running
+
+	$ docker container ls
+	
+		CONTAINER ID   IMAGE     COMMAND                  CREATED       STATUS       PORTS                                   NAMES
+		06d43f228639   mongo     "docker-entrypoint.s…"   4 hours ago   Up 4 hours   27017/tcp                               mongodb
+		ec5ce0d24c6f   nginx     "/docker-entrypoint.…"   4 hours ago   Up 4 hours   0.0.0.0:8080->80/tcp, :::8080->80/tcp   webhost2
+		1cd885b2000a   nginx     "/docker-entrypoint.…"   4 hours ago   Up 4 hours   0.0.0.0:80->80/tcp, :::80->80/tcp       webhost
+
+	$ docker container stop mongodb webhost2 webhost
+	
+		mongodb
+		webhost2
+		webhost
+	
+	$ docker container ls
+	
+		CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+02. Buat container, langsung terhapus begitu kita stop dg CTRL-C
+
+	$ docker container run -p 80:80 --rm nginx
+	
+03. Lihat tampilan default dari image nginx
+
+	Buka web browser : http://192.168.182.135
+
+04. Hapus container ==> CTRL-C
+
+	$ docker container ls -a
+	
+05. Buat Dockerfile
+
+	$ cd /home/docker1/
+	$ mkdir labs
+	$ mkdir labs/dockerfile1
+	$ mv Dockerfile labs/dockerfile1
+	$ mkdir labs/dockerfile2
+	$ cd labs/dockerfile2
+	$ nano Dockerfile
+	
+		FROM nginx:latest
+		WORKDIR /usr/share/nginx/html
+		COPY index.html index.html
+		
+	$ nano index.html
+	
+		<!doctype html>
+		<html lang="en">
+		<head>
+				<meta charset="utf-8">
+				<title>Hari Budisantoso</title>
+		</head>
+		<body>
+				<h1>You just successfuly ran a container with custom file
+					copied into the image at build time!!!</h1>
+		</body>
+		</html>
+	
+06. Build Docker File
+
+	$ cd /home/docker1/labs/dockerfile2
+	$ docker image build -t nginx-with-html .
+	$ docker image ls
+
+07. Buat container dari image nginx-with-html
+
+	$ docker container run -p 80:80 --rm nginx-with-html
+
+08. Lihat tampilan hasil customisasi dari image nginx-with-html
+
+	Buka web browser : http://192.168.182.135
+
+09. Hapus container ==> CTRL-C
+
+
+
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
