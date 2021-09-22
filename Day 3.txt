@@ -1,0 +1,396 @@
+01. Stop semua container yg ada
+
+	$ docker container ls
+	$ docker container stop <container-name>
+	
+02. Hapus semua container yg ada
+
+	$ docker container ls -a
+	$ docker container rm <container-name>
+	$ docker container rm my_ubuntu mongodb webhost2 webhost
+	$ docker container ls -a
+	
+03. - Buat directory
+	- Copy semua file program nodejs dari dev ke directory tsb
+
+	$ mkdir /home/docker1/labs/dockerfile3
+	
+04. Buat Dockerfile
+
+	$ cd /home/docker1/labs/dockerfile3
+	$ nano Dockerfile
+
+		# Instructions from the app developer
+		# - you should use the 'node' official image, with the alpine 6.x branch
+		FROM node:6-alpine
+		# - this app listens on port 3000, but the container should launch on port 80
+		# - so it will respond to http://localhost:80 on your computer
+		EXPOSE 3000
+		# - then it should use alpine package manager to install tini: 'apk add --update tini'
+		RUN apk add --update tini
+		# - then it should create directory /usr/src/app for app files with 'mkdir -p /usr/src/app'
+		RUN mkdir -p /usr/src/app
+		WORKDIR /usr/src/app
+		# - Node uses a "package manager", so it needs to copy in package.json file
+		COPY package.json package.json
+		# - then it needs to run 'npm install' to install dependencies from that file
+		# - to keep it clean and small, run 'npm cache clean --force' after above
+		RUN npm install && npm cache clean --force
+		# - then it needs to copy in all files from current directory
+		COPY . .
+		# - then it needs to start container with command '/sbin/tini -- node ./bin/www'
+		CMD ["/sbin/tini","--","node","./bin/www"]
+
+05. Docker Build
+
+	$ cd /home/docker1/labs/dockerfile3
+	$ docker build -t testnodejs .
+	$ docker image ls
+
+		REPOSITORY                   TAG            IMAGE ID       CREATED              SIZE
+		testnodejs                   latest         66f19115ad18   About a minute ago   64.8MB
+
+06. Buat container untuk test image yg barusan kita buat
+
+	$ docker container run --rm -p 80:3000 testnodejs
+	
+	- Buka Web Browser: http://192.168.182.135
+	- Matikan container dg cara : CTRL-C
+
+07. Upload ke hub.docker.com
+
+	$ docker image ls
+	$ docker tag testnodejs dockermaestro9/testing-nodejs
+	$ docker image ls
+	$ docker push dockermaestro9/testing-nodejs
+	
+	Check ke hub.docker.com
+	
+08. Hapus image testnodejs dan dockermaestro9/testing-nodejs yg sudah ada di lokal
+
+	$ docker image ls
+	$ docker rmi testnodejs dockermaestro9/testing-nodejs
+	$ docker image ls
+	
+09. Buat dari dockermaestro9/testing-nodejs dg cara download langsung dari internet
+
+	$ docker container run --rm -p 80:3000 dockermaestro9/testing-nodejs
+	
+	- Buka Web Browser: http://192.168.182.135
+	- Matikan container dg cara : CTRL-C
+
+====== Basic Persistent Data =========
+
+01. Stop semua container yg ada
+
+	$ docker container ls
+	$ docker container stop <container-name>
+	
+02. Hapus semua container yg ada
+
+	$ docker container ls -a
+	$ docker container rm <container-name>
+	$ docker container rm my_ubuntu mongodb webhost2 webhost
+	$ docker container ls -a
+
+03. Hapus seluruh volume yg ada
+
+	$ docker volume ls
+
+		DRIVER    VOLUME NAME
+		local     530ecdd221c4af3e9865fea5e220af562762ae51baac86d2a6a1bda94ea428a3
+		local     3193bb7fdba9e4b596edff5699992e2e08c9257b7389da5135a515e42568cd98
+		local     e33f6ded62bd51c974f91f83288b4659ee52c378ab9e1d6e89e27f2a2e58adca
+
+	$ docker volume prune
+	$ docker volume ls
+
+04. Download mysql => check membentuk volume
+
+	$ docker pull mysql
+	$ docker image ls
+	$ docker volume ls
+	
+05. cari mysql di hub.docker.com
+	lihat di Dockerfile ==> VOLUME
+	
+	$ docker image inspect mysql
+
+		"Volumes": {
+						"/var/lib/mysql": {}
+					},
+
+06. Run mysqldb1 container
+
+	$ docker container run -d --name mysqldb1 -e MYSQL_ALLOW_EMPTY_PASSWORD=True mysql
+	$ docker container ls
+	$ docker volume ls
+		DRIVER    VOLUME NAME
+		local     05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f
+		
+	$ docker container inspect mysqldb1
+	
+		"Volumes": {
+						"/var/lib/mysql": {}
+					},
+
+       "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f",
+                "Source": "/var/lib/docker/volumes/05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f/_data",
+                "Destination": "/var/lib/mysql",
+                "Driver": "local",
+                "Mode": "",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+
+	$ sudo ls /var/lib/docker/volumes/
+
+		05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f  backingFsBlockDev  metadata.db
+
+07. Run mysqldb2 container
+
+	$ docker container run -d --name mysqldb2 -e MYSQL_ALLOW_EMPTY_PASSWORD=True mysql
+	$ docker container ls
+	$ docker volume ls
+		DRIVER    VOLUME NAME
+		local     4b574158753acde826a2fad9b0641300a7372952eed91ca7c55604ac6ad97f83
+		local     05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f
+
+08. Stop & Hapus Container mysqldb1 + mysqldb2
+
+	$ docker container ls
+	$ docker container stop mysqldb1 mysqldb2
+	$ docker container rm mysqldb1 mysqldb2
+	$ docker container ls -a
+	
+	$ docker volume ls
+		DRIVER    VOLUME NAME
+		local     4b574158753acde826a2fad9b0641300a7372952eed91ca7c55604ac6ad97f83
+		local     05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f
+
+09. - Friendly way to assign volume to container
+	- Run mysqldb3 container
+
+	$ docker container run -d --name mysqldb3 -e MYSQL_ALLOW_EMPTY_PASSWORD=True 
+	                       -v mysql-db:/var/lib/mysql mysql
+	$ docker container ls
+	$ docker volume ls
+	
+		DRIVER    VOLUME NAME
+		local     4b574158753acde826a2fad9b0641300a7372952eed91ca7c55604ac6ad97f83
+		local     05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f
+		local     mysql-db
+
+	$ docker volume inspect mysql-db
+
+10. Connect to mysqldb3 container
+
+	$ mysql --version
+		Command 'mysql' not found
+	
+	$ sudo apt install mysql-client
+	
+	$ mysql --version
+		mysql  Ver 8.0.19-0ubuntu5 for Linux on x86_64 ((Ubuntu))
+
+	$ docker exec -it mysqldb3 mysql -uroot -p
+	
+	mysql> show databases;
+
+			+--------------------+
+			| Database           |
+			+--------------------+
+			| information_schema |
+			| mysql              |
+			| performance_schema |
+			| sys                |
+			+--------------------+
+			4 rows in set (0.01 sec)
+
+	mysql> create database hr;
+	mysql> show databases;
+			+--------------------+
+			| Database           |
+			+--------------------+
+			| hr                 |
+			| information_schema |
+			| mysql              |
+			| performance_schema |
+			| sys                |
+			+--------------------+
+			5 rows in set (0.00 sec)
+	
+	mysql> use hr;
+	mysql> create table pegawai (
+	          nik int(4),
+			  nama varchar(30)
+		   );
+	mysql> show tables;
+    mysql> describe pegawai;	
+	
+	mysql> insert into pegawai values (10,'Badu');
+	mysql> insert into pegawai values (20,'Tini');
+	
+	mysql> select * from pegawai;
+	
+	mysql> exit;
+	
+11. Menghapus mysqldb3 container 
+
+	$ docker container stop mysqldb3
+	$ docker container rm mysqldb3
+	$ docker container ls -a		===> Container terhapus
+	
+	$ docker volume ls				===> Volume masih ada
+	
+		DRIVER    VOLUME NAME
+		local     4b574158753acde826a2fad9b0641300a7372952eed91ca7c55604ac6ad97f83
+		local     05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f
+		local     mysql-db
+	
+	$ docker exec -it mysqldb3 mysql -uroot -p
+		Error: No such container: mysqldb3	
+	
+12. Run mysqldb4 container, menggunakan volume yg sebelumnya digunakan oleh mysqldb3 container 
+
+	$ docker container run -d --name mysqldb4 -e MYSQL_ALLOW_EMPTY_PASSWORD=True 
+							   -v mysql-db:/var/lib/mysql mysql
+	$ docker container ls
+	$ docker volume ls
+		DRIVER    VOLUME NAME
+		local     4b574158753acde826a2fad9b0641300a7372952eed91ca7c55604ac6ad97f83
+		local     05ecfc02d556a311110fcd788e440cccef395a89954ac09559d0485869a8764f
+		local     mysql-db
+
+	$ docker container inspect mysqldb4
+
+		   "Mounts": [
+				{
+					"Type": "volume",
+					"Name": "mysql-db",
+					"Source": "/var/lib/docker/volumes/mysql-db/_data",
+					"Destination": "/var/lib/mysql",
+					"Driver": "local",
+					"Mode": "z",
+					"RW": true,
+					"Propagation": ""
+				}
+			],
+
+13. Connect to mysqldb4
+
+	$ docker exec -it mysqldb4 mysql -uroot -p
+	mysql> show databases;
+	mysql> use hr;
+	mysql> show tables;
+	mysql> describe pegawai;
+	mysql> select * from pegawai;
+	mysql> exit;
+	
+========= Bind Mounts =========
+
+01. Run nginx1 container
+
+	$ docker container run -d --name nginx1 -p 80:80 nginx
+	$ docker container ls
+	
+	Lihat di browser tampilan asli dari nginx: http://192.168.182.135
+	
+02. Persiapan
+
+	$ mkdir /home/docker1/labs/bind
+	$ cp /home/docker1/labs/dockerfile2/index.html /home/docker1/labs/bind
+	$ cd /home/docker1/labs/bind
+	$ ls
+	
+03. Run nginx2 container
+
+	$ cd /home/docker1/labs/bind
+	$ docker container run -d --name nginx2 -p 8080:80 -v $(pwd):/usr/share/nginx/html nginx
+	$ docker container ls
+
+	Lihat di browser perubahan dari nginx: http://192.168.182.135:8080
+
+04. Bukti kalau nginx2 mengakses bind mounting
+
+	$ docker container exec -it nginx2 bash
+	
+	# cd /usr/share/nginx/html
+	# ls
+	# more index.html
+	# touch test.txt
+	# exit
+	
+	$ cd /home/docker1/labs/bind
+	$ ls
+
+============  Docker Compose =============
+
+- The multi container tool
+
+01. Melihat contoh file YAML
+	- template.yml
+	- docker-compose-1.yml
+	- docker-compose-2.yml
+	- docker-compose-3.yml
+
+02. Install docker compose
+
+	$ sudo apt install docker-compose
+		Building dependency tree
+		Reading state information... Done
+		E: Unable to locate package docker-compose
+		
+	Jika ada pesan Error spt diatas, enable semua software update yg ada
+	di setting Ubuntu
+	
+	$ sudo apt install docker-compose
+	
+	$ docker-compose version
+		docker-compose version 1.25.0, build unknown
+		docker-py version: 4.1.0
+		CPython version: 3.8.2
+		OpenSSL version: OpenSSL 1.1.1f  31 Mar 2020
+
+03. Persiapan.
+	- Yakinkan tidak ada container yg running
+	- Hapus semua container yg ada
+	- Buat direktory
+	
+		$ mkdir /home/docker1/labs/compose1
+		$ cd /home/docker1/labs/compose1
+		
+04. Buat file YAML
+
+	$ cd /home/docker1/labs/compose1
+	$ nano docker-compose.yml
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+	
+	
+	
+	
