@@ -1,0 +1,344 @@
+01. Check system
+
+	# Tidak ada service
+	$ docker service ls
+	$ docker service rm <service-name>
+	
+	# Tidak ada volume
+	$ docker volume ls	
+	$ docker volume prune
+	
+	# Hanya ada network network default
+	$ docker network ls
+		NETWORK ID     NAME              DRIVER    SCOPE
+		28ecbe0faddc   bridge            bridge    local
+		51a91449afb4   docker_gwbridge   bridge    local
+		1f68ad61a879   host              host      local
+		d9a0w17d1abs   ingress           overlay   swarm
+		f1830a1b0903   none              null      local	
+	$ docker network rm <network-name>
+	
+	# Tidak ada container
+	$ docker container ls -a
+	$ docker container rm <container-name>
+	
+	# docker swarm yakinkan aktif
+	$ docker info
+		...
+		Swarm: active
+		...
+	
+02. Create Network
+
+	$ docker network create -d overlay backend
+	$ docker network create -d overlay frontend
+	$ docker network ls
+
+03. Create Service Vote
+
+	$ docker service create --name vote -p 80:80 --network frontend --replicas 2 dockermaestro9/examplevotingapp_vote
+	$ docker service ls
+	
+04. Create Service Redis
+
+	$ docker service create --name redis --network frontend redis:3.2
+	$ docker service ls	
+	$ docker volume ls
+	
+05. Create Service Worker
+
+	$ docker service create --name worker --network frontend --network backend 
+	                        dockermaestro9/examplevotingapp_worker:java
+	$ docker service ls	
+
+06. Create Service db
+
+	$ docker service create --name db --network backend -e POSTGRES_HOST_AUTH_METHOD=trust 
+	                        --mount type=volume,source=db-data,target=/var/lib/postgresql/data 
+							postgres:9.4
+	$ docker service ls		
+	$ docker volume ls
+
+07. Create Service result
+
+	$ docker service create --name result --network backend -p 5001:80
+	                        dockermaestro9/examplevotingapp_result
+	$ docker service ls		
+	
+08. Check
+
+	$ docker service ls	
+	
+	$ docker service ps vote
+	$ docker service ps redis
+	$ docker service ps worker
+	$ docker service ps db
+	$ docker service ps result
+	
+	$ docker service logs worker
+	
+09. Testing : Buka Web Browser
+
+		Result : Buka di VM Linux : http://localhost:5001
+		
+		Vote   : Buka Chrome
+		         Buka Firefox	  : http://192.168.182.135 
+				 Buka Edge
+	
+10. Scale Up Services
+
+		vote    : 2 => 4
+		redis   : 1 => 2
+        worker  : 1 => 3
+        db      : 1 => 2
+        result  : 1 => 3
+
+	$ docker service update vote --replicas 4
+	$ docker service update redis --replicas 2
+	$ docker service update worker --replicas 3
+	$ docker service update db --replicas 2
+	$ docker service update result --replicas 3
+	
+	$ docker service ls
+	
+12. Cleansing
+
+	$ docker service ls
+	$ docker service rm vote redis worker db result
+	
+	$ docker container ls -a
+	
+	$ docker volume ls
+	$ docker volume prune
+	
+	$ docker network ls
+	$ docker network rm frontend backend 
+	
+==== Docker Swarm Stack ====	
+	
+01. Conversi latihan sebelumnya menjadi Swarm Stacks
+	- Prasyarat : Docker Swarm sudah diaktifkan
+	
+02. Buat directory
+
+	$ mkdir /home/docker1/labs/swarm1
+	$ cd /home/docker1/labs/swarm1
+	$ nano voting-app-stack.yml
+	
+03. Deploy
+
+	cd /home/docker1/labs/swarm1
+	$ docker stack ls
+	$ docker stack deploy -c voting-app-stack.yml voteapp
+	
+		Creating network voteapp_frontend
+		Creating network voteapp_backend
+		Creating service voteapp_vote
+		Creating service voteapp_redis
+		Creating service voteapp_worker
+		Creating service voteapp_db
+		Creating service voteapp_result
+	
+04. Verifikasi
+
+	$ docker stack ls
+	
+		NAME      SERVICES   ORCHESTRATOR
+		voteapp   5          Swarm
+
+	$ docker stack ps voteapp
+	
+		ID             NAME               IMAGE                                           NODE      DESIRED STATE   CURRENT STATE           ERROR     PORTS
+		tpc9zakx5mc6   voteapp_db.1       postgres:9.4                                    vm1       Running         Running 2 minutes ago
+		spsq90z552ei   voteapp_redis.1    redis:3.2                                       vm1       Running         Running 2 minutes ago
+		u29t76w9tetp   voteapp_result.1   dockermaestro9/examplevotingapp_result:latest   vm1       Running         Running 2 minutes ago
+		5krimgx7jpun   voteapp_vote.1     dockermaestro9/examplevotingapp_vote:latest     vm1       Running         Running 2 minutes ago
+		z3dyxjmhs7ec   voteapp_vote.2     dockermaestro9/examplevotingapp_vote:latest     vm1       Running         Running 2 minutes ago
+		qhmeihqihh7o   voteapp_worker.1   dockermaestro9/examplevotingapp_worker:java     vm1       Running         Running 2 minutes ago
+	
+05. Testing : Buka Web Browser
+
+		Result : Buka di VM Linux : http://localhost:5001
+		
+		Vote   : Buka Chrome
+		         Buka Firefox	  : http://192.168.182.135:5000 
+				 Buka Edge	
+	
+06. Scaling Up
+
+		vote    : 2 => 4
+		redis   : 1 => 2
+        worker  : 1 => 3
+        db      : 1 => 2
+        result  : 1 => 3
+
+	cd /home/docker1/labs/swarm1
+	$ nano voting-app-stack.yml		
+	$ docker stack deploy -c voting-app-stack.yml voteapp
+		Updating service voteapp_worker (id: xe3w3uh7nxg0f15vtwdmv60me)
+		Updating service voteapp_db (id: 16x6eca7g494ucdp95wqayu9k)
+		Updating service voteapp_result (id: os0xem8maozbczudb25nuulmj)
+		Updating service voteapp_vote (id: jcniy65cctudve4nt4qqsrunu)
+		Updating service voteapp_redis (id: nsmzwcljof1mr8oac23n488o3)
+	
+	$ docker stack ps voteapp
+	
+07. Cleansing
+
+	# Hapus Stack
+	$ docker stack rm voteapp
+	
+	# Check 
+	$ docker container ls -a
+	$ docker network ls
+	$ docker volume ls
+	$ docker volume prune
+	
+	# Swarm Disable
+	$ docker swarm leave --force
+	$ docker info
+		
+		 Swarm: inactive
+
+	
+==== Install k8s ====
+
+01. Install Docker Container
+
+02. Disable swap 
+
+	$ swapon --show	
+	$ sudo nano /etc/fstab
+	
+		#/swapfile                                 none            swap    sw              0       0
+		
+	$ sudo swapoff -a	
+	
+03. Enable IP forwarding on all nodes
+	
+	$ sudo nano /etc/sysctl.conf
+	
+		net.ipv4.ip_forward=1
+	
+	$ sudo sysctl -p
+		net.ipv4.ip_forward = 1	
+
+04. Disable SELinux
+
+	## check status
+	$ sestatus
+		sestatus: command not found
+		
+	$ sudo reboot	
+	
+05. Add the Kubernetes signing key to systems:
+
+	$ sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+
+06. Install the Kubernetes repository;
+
+	$ sudo apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+	$ sudo apt-get update	
+	
+07. Now we can install Kubernetes:
+
+	$ sudo apt install kubeadm kubelet kubectl	
+	
+08. Configure the docker container 
+
+	$ ls /etc/docker
+	$ cat <<EOF | sudo tee /etc/docker/daemon.json
+	{
+	"exec-opts": ["native.cgroupdriver=systemd"],
+	"log-driver": "json-file",
+	"log-opts": {
+	"max-size": "100m"
+	},
+	"storage-driver": "overlay2"
+	}
+	EOF
+
+	$ sudo systemctl enable docker
+	$ sudo systemctl daemon-reload
+	$ sudo systemctl restart docker
+
+	$ sudo systemctl status docker	
+	
+09. Login to your master node and run below ‘kubeadm init‘ command to initialize Kubernetes cluster,
+
+	$ sudo kubeadm init --pod-network-cidr=10.244.0.0/16     	
+	
+		Your Kubernetes control-plane has initialized successfully!
+
+		To start using your cluster, you need to run the following as a regular user:
+
+		  mkdir -p $HOME/.kube
+		  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+		  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+		Alternatively, if you are the root user, you can run:
+
+		  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+		You should now deploy a pod network to the cluster.
+		Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+		  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+		Then you can join any number of worker nodes by running the following on each as root:
+
+		kubeadm join 192.168.182.135:6443 --token hw0hdx.icxugri77sdepn56 \
+				--discovery-token-ca-cert-hash sha256:bf10c2faa3752b1212a0497bab45ce5909df2d34920ea10e69498507181aa120
+
+10. Execute the following commands
+
+	$ mkdir -p $HOME/.kube
+	$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+	$ sudo chown $(id -u):$(id -g) $HOME/.kube/config	
+	
+	$ sudo systemctl status kubelet
+	$ kubectl version
+	$ kubectl cluster-info
+	$ kubectl get nodes
+		NAME   STATUS     ROLES                  AGE     VERSION
+		vm1    NotReady   control-plane,master   8m11s   v1.22.2
+	
+11. Install Flannel pod network
+
+	$ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml	
+	
+	$ kubectl get nodes
+		NAME   STATUS   ROLES                  AGE   VERSION
+		vm1    Ready    control-plane,master   10m   v1.22.2
+	
+12. Test and Verify Kubernetes Cluster
+	
+	Kubernetes       Docker Swarm
+	  Deployment       Service
+	  Replica Set      Replica
+      Pod              Container	  
+	
+	$ kubectl create deployment nginx-web --image=nginx
+	
+	# Deployment
+	$ kubectl get deployments
+		NAME        READY   UP-TO-DATE   AVAILABLE   AGE
+		nginx-web   0/1     1            0           36s
+	
+	# Replica Set
+	$ kubectl get rs
+		NAME                   DESIRED   CURRENT   READY   AGE
+		nginx-web-5bf45d88df   1         1         0       108s
+	
+	# Pods
+	$ kubectl get pods
+		NAME                         READY   STATUS    RESTARTS   AGE
+		nginx-web-5bf45d88df-vvbhd   0/1     Pending   0          2m58s
+	
+	$ docker container ls
+	
+	# Membuat node master mau ngerjain semua request
+	$ kubectl taint nodes --all node-role.kubernetes.io/master-
+	
+	$ kubectl get deployments
+	$ kubectl get rs
+	$ kubectl get pods

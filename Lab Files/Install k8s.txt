@@ -1,0 +1,75 @@
+01. Install Docker Container
+
+02. Disable swap 
+
+	$ swapon --show	
+	$ sudo nano /etc/fstab
+	
+		#/swapfile                                 none            swap    sw              0       0
+		
+	$ sudo swapoff -a
+	
+03. Enable IP forwarding on all nodes
+	
+	$ sudo nano /etc/sysctl.conf
+	
+		net.ipv4.ip_forward=1
+	
+	$ sudo sysctl -p
+		net.ipv4.ip_forward = 1
+
+04. Disable SELinux
+
+	## check status
+	$ sestatus
+		sestatus: command not found
+		
+	$ sudo reboot
+	
+05. Add the Kubernetes signing key to systems:
+
+	$ sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+
+06. Install the Kubernetes repository;
+
+	$ sudo apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+	$ sudo apt-get update
+	
+07. Now we can install Kubernetes:
+
+	$ sudo apt install kubeadm kubelet kubectl
+	
+08. Configure the docker container 
+
+	$ ls /etc/docker
+	$ cat <<EOF | sudo tee /etc/docker/daemon.json
+	{
+	"exec-opts": ["native.cgroupdriver=systemd"],
+	"log-driver": "json-file",
+	"log-opts": {
+	"max-size": "100m"
+	},
+	"storage-driver": "overlay2"
+	}
+	EOF
+
+	$ sudo systemctl enable docker
+	$ sudo systemctl daemon-reload
+	$ sudo systemctl restart docker
+
+	$ sudo systemctl status docker
+	
+09. Login to your master node and run below ‘kubeadm init‘ command to initialize Kubernetes cluster,
+
+	$ sudo kubeadm init --pod-network-cidr=10.244.0.0/16              
+	
+10. Execute the following commands
+
+	$ mkdir -p $HOME/.kube
+	$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+	$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+11. Install Flannel pod network
+
+	$ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
